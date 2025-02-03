@@ -1,16 +1,28 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/';
+import { API_BASE_URL } from "./base";
 
-interface AgentConfig {
-  confidence_threshold: number
+interface NLUConfig {
+  pipeline_type: 'traditional' | 'llm';
+  traditional_settings: {
+    intent_detection_threshold: number;
+    entity_detection_threshold: number;
+    use_spacy: boolean;
+  };
+  llm_settings: {
+    base_url: string;
+    api_key: string;
+    model_name: string;
+    max_tokens: number;
+    temperature: number;
+  };
 }
 
-export const getConfig = async (): Promise<AgentConfig> => {
-  const response = await fetch(`${API_BASE_URL}agents/default/config`);
+export const getConfig = async (): Promise<NLUConfig> => {
+  const response = await fetch(`${API_BASE_URL}bots/default/config`);
   return response.json();
 };
 
-export const updateConfig = async (data: AgentConfig): Promise<AgentConfig> => {
-  const response = await fetch(`${API_BASE_URL}agents/default/config`, {
+export const updateConfig = async (data: NLUConfig): Promise<NLUConfig> => {
+  const response = await fetch(`${API_BASE_URL}bots/default/config`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -21,7 +33,7 @@ export const updateConfig = async (data: AgentConfig): Promise<AgentConfig> => {
 export const importIntents = async (fileToUpload: File) => {
   const formData = new FormData();
   formData.append('file', fileToUpload, fileToUpload.name);
-  const response = await fetch(`${API_BASE_URL}agents/default/import`, {
+  const response = await fetch(`${API_BASE_URL}bots/default/import`, {
     method: 'POST',
     body: formData,
   });
@@ -29,7 +41,7 @@ export const importIntents = async (fileToUpload: File) => {
 };
 
 export const exportIntents = async () => {
-  window.location.href = `${API_BASE_URL}agents/default/export`;
+  window.location.href = `${API_BASE_URL}bots/default/export`;
 };
 
-export type { AgentConfig }; 
+export type { NLUConfig }; 

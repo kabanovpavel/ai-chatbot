@@ -1,46 +1,61 @@
-from flask.cli import AppGroup, with_appcontext
+import typer
+import asyncio
+from json import loads
+import logging
+import spacy
+from pymongo.errors import DuplicateKeyError
+from app.main import app
 
-from app import create_app
+cli = typer.Typer()
 
-app = create_app()
+logger = logging.getLogger(__name__)
 
-cli = AppGroup('manage', help='migrate commands')
 
-@cli.command('migrate')
-@with_appcontext
+@cli.command()
 def migrate():
-    from app.agents.models import Bot
-    from app.intents.controllers import import_json
-    from app.nlu.training import train_models
+    async def async_migrate():
+        from app.admin.bots.store import ensure_default_bot, import_bot
+        from app.admin.integrations.store import ensure_default_integrations
+        from app.config import app_config
 
-    # Create default bot
-    try:
-        bot = Bot()
-        bot.name = "default"
-        bot.save()
-        print("Created default bot")
-    except Exception as e:
-        print(f"Default bot creation failed or already exists: {e}")
+        try:
+            await ensure_default_bot()
+            logger.info("Created default bot")
+        except DuplicateKeyError:
+            logger.info("Default bot already exists")
 
-    # Import default intents
-    try:
-        with open("migrations/default_intents.json", "r") as json_file:
-            stories = import_json(json_file)
-            print(f"Imported {len(stories)} Stories")
-    except FileNotFoundError:
-        print("Error: 'migrations/default_intents.json' file not found.")
-    except Exception as e:
-        print(f"Failed to import intents: {e}")
+        try:
+            with open("migrations/default_intents.json", "r") as json_file:
+                json_data = loads(json_file.read())
+                imported_intents = await import_bot("default", json_data)
+                logger.info(
+                    f"Imported {imported_intents.get('num_intents_created')} intents for default bot"
+                )
+        except FileNotFoundError:
+            logger.error("Error: 'migrations/default_intents.json' file not found.")
 
-    # Train models
-    try:
-        print("Training models..")
-        train_models(app)
-        print("Training models finished.")
-    except Exception as e:
-        error_message = str(e)
-        if error_message == "NO_DATA":
-            error_message = "Load data first into MongoDB. Refer to the README."
-        print(f"Could not train models: {error_message}")
+        await ensure_default_integrations()
 
-app.cli.add_command(cli)
+        # ensure spacy language models are installed
+        logger.info("Downloading spacy language models...")
+        spacy.cli.download(app_config.SPACY_LANG_MODEL)
+
+        logger.info("Migration finished.")
+
+    asyncio.run(async_migrate())
+
+
+@cli.command()
+def train():
+    async def async_train():
+        from app.bot.nlu.pipeline_utils import train_pipeline
+
+        logger.info("Training models...")
+        await train_pipeline(app)
+        logger.info("Training models finished.")
+
+    asyncio.run(async_train())
+
+
+if __name__ == "__main__":
+    cli()

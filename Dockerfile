@@ -1,16 +1,17 @@
-FROM python:3.12.7-slim
-
-# Install common libraries
-RUN apt-get update -qq \
- && apt-get install -y --no-install-recommends build-essential && apt-get autoremove -y
+FROM --platform=linux/x86_64 python:3.12.7-slim
 
 WORKDIR /usr/src/app
 
-COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-EXPOSE 80
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-CMD ["gunicorn", "run:app" ,"--log-level=debug", "--timeout", "90","--bind", "0.0.0.0:80" ]
+EXPOSE 80
+
+CMD ["fastapi", "run" ,"--host", "0.0.0.0","--port", "80" ]

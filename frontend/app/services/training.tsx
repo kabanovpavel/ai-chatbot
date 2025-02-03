@@ -1,3 +1,5 @@
+import { API_BASE_URL } from "./base";
+
 interface Parameter {
   name: string;
   value?: string;
@@ -10,24 +12,6 @@ interface Intent {
   parameters?: Parameter[];
   responses?: string[];
   [key: string]: unknown;
-}
-
-interface ChatState {
-  currentNode: string;
-  complete: boolean | null;
-  context: Record<string, unknown>;
-  parameters: Parameter[];
-  extractedParameters: Record<string, unknown>;
-  speechResponse: string[];
-  intent: Intent;
-  input: string;
-  missingParameters: Parameter[];
-  owner?: string;
-  date?: Date;
-}
-
-interface MongoId {
-  $oid: string;
 }
 
 interface Entity {
@@ -48,16 +32,16 @@ interface EntityValue{
 }
 
 interface EntityModel {
-  _id?: MongoId;
+  id?: string;
   name: string;
   entity_values: EntityValue[];
 }
 
 interface IntentModel {
-  _id?: MongoId;
+  id?: string;
   name: string;
   description?: string;
-  intentId?: string;
+  intentId: string;
   userDefined?: boolean;
   parameters: Array<{
     name: string;
@@ -79,8 +63,6 @@ interface IntentModel {
   };
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8080/';
-
 export const saveTrainingData = async (intentId: string, data: Example[]) => {
   const response = await fetch(`${API_BASE_URL}train/${intentId}/data`, {
     method: 'POST',
@@ -96,7 +78,7 @@ export const getTrainingData = async (intentId: string): Promise<Example[]> => {
 };
 
 export const trainModels = async () => {
-  const response = await fetch(`${API_BASE_URL}nlu/build_models`, {
+  const response = await fetch(`${API_BASE_URL}train/build_models`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
@@ -104,4 +86,4 @@ export const trainModels = async () => {
   return response.json();
 };
 
-export type { Entity, Example, EntityModel,EntityValue, IntentModel, ChatState, MongoId, Parameter, Intent }; 
+export type { Entity, Example, EntityModel,EntityValue, IntentModel, Parameter, Intent }; 
